@@ -73,26 +73,18 @@ class EmotionAnalysisPlus(AbsTaskMultilabelClassification):
         bibtex_citation="",
     )
 
-    # ---------------------------------------------------------------- transform
     def dataset_transform(self, **kwargs) -> None:
-        """
-        Bring every split to the MTEB expected format:
-        * column **text** : sentence/utterance (str)
-        * column **label**: list[int] (multi-label IDs 0–5)
+        from datasets import Dataset, DatasetDict, load_dataset
 
-        The mteb/EmotionAnalysis mirror (rev 554dbe3) ships data already in
-        canonical {text, label} form, and its 'validation' split is declared
-        but empty (0 rows). We load test-only (split="test" in the dataset
-        metadata), which returns a bare Dataset per language, so we re-wrap
-        into a DatasetDict; every split is already {text, label}.
-        """
-        from datasets import Dataset, DatasetDict
+        path = self.metadata.dataset["path"]
+        rev = self.metadata.dataset["revision"]
 
         for lang in self.dataset:
-            # split="test" makes load_dataset return a bare Dataset per lang;
-            # re-wrap into the split-keyed dict this task expects.
             if isinstance(self.dataset[lang], Dataset):
-                self.dataset[lang] = DatasetDict({"test": self.dataset[lang]})
+                train = load_dataset(path, lang, revision=rev, split="train")
+                self.dataset[lang] = DatasetDict(
+                    {"train": train, "test": self.dataset[lang]}
+                )
             for split in self.dataset[lang]:
                 cols = self.dataset[lang][split].column_names
                 if "text" not in cols or "label" not in cols:
